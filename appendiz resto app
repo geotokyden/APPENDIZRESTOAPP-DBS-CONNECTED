@@ -1,0 +1,564 @@
+import java.awt.*;
+import java.sql.*;
+import javax.swing.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.stream.Collectors;
+
+public class AppendizRestoApp {
+    private static JFrame frame; // Declare the JFrame
+
+    private static String usernamefordb = "";
+
+    private static boolean authenticatingcreateaccount(String username) {
+        String finduser = "SELECT COUNT(*) FROM userinfo WHERE from Username = ?";
+        try {
+            Connection connection = DriverManager.getConnection(
+                    "jdbc:mysql://127.0.0.1:3306/appendizrestoappdb",
+                    "root",
+                    "12345");
+            PreparedStatement pstmt = connection.prepareStatement(finduser);
+            pstmt.setString(1, username);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next() && rs.getInt(1) > 0) {
+                return true;
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    private static boolean authenticatinglogin(String username, String password, JDialog dialog) {
+        if (username.isEmpty() || password.isEmpty()) {
+            JOptionPane.showMessageDialog(dialog, "Username and password cannot be empty.", "Input Error",
+                    JOptionPane.WARNING_MESSAGE);
+            return false;
+        }
+
+        String findUserQuery = "SELECT password FROM userinfo WHERE BINARY username = ?";
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:mysql://127.0.0.1:3306/appendizrestoappdb",
+                "root",
+                "12345");
+             PreparedStatement pstmt = connection.prepareStatement(findUserQuery)) {
+
+            pstmt.setString(1, username);
+            try (ResultSet resultSet = pstmt.executeQuery()) {
+                if (resultSet.next()) {
+                    String storedPassword = resultSet.getString("password");
+
+                    if (storedPassword.equals(password)) {
+                        usernamefordb = username;
+                        dialog.dispose();
+                        showMenuPage();
+                        return true;
+                    } else {
+                        JOptionPane.showMessageDialog(dialog, "Invalid password. Please try again.", "Login Failed",
+                                JOptionPane.ERROR_MESSAGE);
+                        return false;
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(dialog, "Username not found. Please check and try again.", "Login Failed",
+                            JOptionPane.ERROR_MESSAGE);
+                    return false;
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace(); // Log the error for debugging
+            return false;
+        }
+    }
+
+    private static void savinguserInfo(String username, String password) {
+        try {
+            Connection connection = DriverManager.getConnection(
+                    "jdbc:mysql://127.0.0.1:3306/appendizrestoappdb",
+                    "root",
+                    "12345");
+
+            PreparedStatement pstmt = connection
+                    .prepareStatement("INSERT INTO userinfo (Username, Password) VALUES (?, ?)");
+            pstmt.setString(1, username);
+            pstmt.setString(2, password);
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(AppendizRestoApp::showLoginPage);
+
+    }
+
+    // Display Login Page
+    private static void showLoginPage() {
+        frame = new JFrame("Appendiz Resto");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.getContentPane().setBackground(Color.decode("#F4DEB3"));
+        frame.setSize(734, 413);
+        frame.setLayout(new BorderLayout());
+        frame.setResizable(false);
+
+        // Setting up the login panel
+        JPanel titlePanel = new JPanel();
+        titlePanel.setBackground(Color.decode("#3E2723")); // Make it transparent
+        JLabel titleLabel = new JLabel("Appendiz Resto", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Open Sans", Font.BOLD, 35));
+        titleLabel.setForeground(Color.orange);
+        titlePanel.add(titleLabel);
+        frame.add(titlePanel, BorderLayout.NORTH);
+        JPanel buttonPanel = new JPanel(null);
+        buttonPanel.setOpaque(false);
+
+        // Create login and create account buttons
+        JButton loginButton = new JButton("Login");
+        JButton createAccountButton = new JButton("Create Account");
+
+        // Set bounds for the buttons
+        loginButton.setBounds(200, 200, 150, 40);
+        createAccountButton.setBounds(400, 200, 150, 40);
+        // Login button
+        loginButton.setContentAreaFilled(false);
+        loginButton.setForeground(Color.BLACK);
+        loginButton.setFont(new Font("Courier New", Font.ITALIC, 14));
+        // Create Account button
+        createAccountButton.setContentAreaFilled(false);
+        createAccountButton.setForeground(Color.BLACK);
+        createAccountButton.setFont(new Font("Courier New", Font.ITALIC, 14));
+        // Add buttons to the button panel
+        buttonPanel.add(loginButton);
+        buttonPanel.add(createAccountButton);
+        frame.add(buttonPanel, BorderLayout.CENTER);
+
+        // Login button dialog
+        loginButton.addActionListener(e -> showLoginDialog());
+
+        // Create button dialog
+        createAccountButton.addActionListener(e -> showCreateAccountDialog());
+
+        ImageIcon image = new ImageIcon("spaghetti.png");
+        frame.setIconImage(image.getImage());
+        frame.setVisible(true);
+    }
+    
+    // Show Create Account Dialog
+    private static void showCreateAccountDialog() {
+        JDialog dialog = new JDialog(frame, "Create Account", true);
+        dialog.getContentPane().setBackground(Color.decode("#3E2723"));
+        dialog.setLayout(new BorderLayout());
+        dialog.setSize(450, 300);
+        dialog.setLayout(new GridLayout(3, 2));
+
+        // Labels and text fields for username and password
+        dialog.setLayout(new GroupLayout(dialog.getContentPane()));
+        JLabel userLabel = new JLabel("Username:");
+        JLabel passLabel = new JLabel("Password:");
+        JTextField userField = new JTextField();
+        JPasswordField passField = new JPasswordField();
+        JButton createButton = new JButton("Create");
+
+        Font font = new Font("Courier New", Font.ITALIC, 14);
+        // Define a font
+        userLabel.setFont(font);
+        passLabel.setFont(font);
+        userField.setFont(font);
+        passField.setFont(font);
+        createButton.setFont(font);
+        // Font color
+        userLabel.setForeground(Color.WHITE);
+        passLabel.setForeground(Color.WHITE);
+        userField.setForeground(Color.BLACK);
+        passField.setForeground(Color.BLACK);
+        createButton.setForeground(Color.WHITE);
+        createButton.setBackground(Color.BLACK);
+        // GroupLayout settings
+        GroupLayout layout = new GroupLayout(dialog.getContentPane());
+        dialog.getContentPane().setLayout(layout);
+        layout.setAutoCreateGaps(true);
+        layout.setAutoCreateContainerGaps(true);
+        layout.setHorizontalGroup(
+                layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+                        .addGroup(layout.createSequentialGroup()
+                                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+                                        .addComponent(userLabel)
+                                        .addComponent(passLabel))
+                                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+                                        .addComponent(userField, 200, 200, Short.MAX_VALUE)
+                                        .addComponent(passField, 200, 200, Short.MAX_VALUE)))
+                        .addGroup(layout.createSequentialGroup()
+                                .addGap(300) // Center the button horizontally
+                                .addComponent(createButton)));
+
+        layout.setVerticalGroup(
+                layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+                                .addComponent(userLabel)
+                                .addComponent(userField))
+                        .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+                                .addComponent(passLabel)
+                                .addComponent(passField))
+                        .addGroup(layout.createSequentialGroup()
+                                .addGap(20) // Adjust space between fields and button
+                                .addComponent(createButton)));
+
+        createButton.addActionListener(e -> {
+            String username = userField.getText();
+            String password = new String(passField.getPassword());
+
+            if (username.isEmpty() || password.isEmpty()) {
+                JOptionPane.showMessageDialog(dialog, "All fields are required.", "Error", JOptionPane.ERROR_MESSAGE);
+            } else if (authenticatingcreateaccount(username)) {
+                JOptionPane.showMessageDialog(dialog, "Account already exists in our database.", "Error",
+                        JOptionPane.ERROR_MESSAGE);
+            } else if (username.length() < 8 || password.length() < 8) {
+                JOptionPane.showMessageDialog(dialog, "Username and password must be longer than 8 characters.",
+                        "Error", JOptionPane.ERROR_MESSAGE);
+            } else {
+                savinguserInfo(username, password); // Store the new account
+                JOptionPane.showMessageDialog(dialog, "Account created successfully!", "Success",
+                        JOptionPane.INFORMATION_MESSAGE);
+                dialog.dispose();
+            }
+        });
+
+        dialog.setVisible(true);
+    }
+
+    private static void saveOrderToDatabase(String username, String items, int totalPrice, int payment, int change) {
+        String query = "INSERT INTO orderinfo (CustomerUserName, Orders, cash, Total, totalchange) VALUES (?, ?, ?, ?, ?)";
+        try (Connection connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/appendizrestoappdb",
+                "root", "12345");
+             PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setString(1, username);
+            pstmt.setString(2, items);
+            pstmt.setInt(3, payment);
+            pstmt.setInt(4, totalPrice);
+            pstmt.setInt(5, change);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void showLoginDialog() {
+        JDialog dialog = new JDialog(frame, "Login", true);
+        dialog.getContentPane().setBackground(Color.decode("#3E2723"));
+        dialog.setLayout(new BorderLayout());
+        dialog.setSize(450, 300);
+        dialog.setLayout(new GridLayout(3, 2));
+        // Labels and text fields for login
+        JLabel userLabel = new JLabel("Username:");
+        JLabel passLabel = new JLabel("Password:");
+        JTextField userField = new JTextField();
+        JPasswordField passField = new JPasswordField();
+        JButton loginButton = new JButton("Login");
+        loginButton.setContentAreaFilled(false);
+        // GroupLayout settings
+        GroupLayout layout = new GroupLayout(dialog.getContentPane());
+        dialog.getContentPane().setLayout(layout);
+        // Change font
+        Font font = new Font("Courier New", Font.ITALIC, 14);
+        // Define a font
+        userLabel.setFont(font);
+        passLabel.setFont(font);
+        userField.setFont(font);
+        passField.setFont(font);
+        loginButton.setFont(font);
+        // Change background button
+        userLabel.setForeground(Color.WHITE);
+        passLabel.setForeground(Color.WHITE);
+        userField.setForeground(Color.BLACK);
+        passField.setForeground(Color.BLACK);
+        loginButton.setForeground(Color.WHITE);
+        loginButton.setBackground(Color.WHITE);
+
+        layout.setAutoCreateGaps(true);
+        layout.setAutoCreateContainerGaps(true);
+
+        layout.setHorizontalGroup(
+                layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+                        .addGroup(layout.createSequentialGroup()
+                                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+                                        .addComponent(userLabel)
+                                        .addComponent(passLabel))
+                                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+                                        .addComponent(userField, 200, 200, Short.MAX_VALUE)
+                                        .addComponent(passField, 200, 200, Short.MAX_VALUE)))
+                        .addGroup(layout.createSequentialGroup()
+                                .addGap(300) // Center the button horizontally
+                                .addComponent(loginButton)));
+
+        layout.setVerticalGroup(
+                layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+                                .addComponent(userLabel)
+                                .addComponent(userField))
+                        .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+                                .addComponent(passLabel)
+                                .addComponent(passField))
+                        .addGroup(layout.createSequentialGroup()
+                                .addGap(20) // Adjust space between fields and button
+                                .addComponent(loginButton)));
+
+        dialog.add(userLabel);
+        dialog.add(userField);
+        dialog.add(passLabel);
+        dialog.add(passField);
+        dialog.add(new JLabel()); // Empty space
+        dialog.add(loginButton);
+
+        // Logging in
+        loginButton.addActionListener(e -> {
+            String username = userField.getText();
+            String password = new String(passField.getPassword());
+
+            authenticatinglogin(username, password, dialog);
+        });
+
+        dialog.setVisible(true); // Show the login dialog
+    }
+
+    private static void showMenuPage() {
+        frame.getContentPane().removeAll(); // Remove the current content (login page)
+        frame.setLayout(new BorderLayout());
+        frame.getContentPane().setBackground(Color.decode("#F4DEB3"));
+
+        // Title label for the menu
+        JLabel menuLabel = new JLabel("Menu", SwingConstants.CENTER);
+        menuLabel.setFont(new Font("Open Sans", Font.BOLD, 24));
+        menuLabel.setForeground(Color.ORANGE);
+        frame.add(menuLabel, BorderLayout.NORTH);
+
+        // Panel for menu items
+        JPanel menuPanel = new JPanel();
+        menuPanel.setLayout(new GridLayout(4, 4, 10, 10)); // Adjust grid layout for items
+        menuPanel.setOpaque(false);
+
+        // Menu items
+        String[] items = {"Soda", "Fries", "Burger", "Salad"};
+        int[] prices = {50, 70, 100, 80};
+        int[] quantities = new int[items.length];
+        JLabel totalLabel = new JLabel("Total: ₱0", SwingConstants.CENTER); // Single total label
+        totalLabel.setFont(new Font("Courier New", Font.ITALIC, 18));
+        totalLabel.setForeground(Color.BLACK);
+
+        for (int i = 0; i < items.length; i++) {
+            // Item label
+            JLabel itemLabel = new JLabel(items[i] + " (₱" + prices[i] + ")");
+            itemLabel.setFont(new Font("Courier New", Font.ITALIC, 18));
+            itemLabel.setForeground(Color.BLACK);
+
+            // Quantity label
+            JLabel quantityLabel = new JLabel("0", SwingConstants.CENTER);
+            quantityLabel.setFont(new Font("Courier New", Font.ITALIC, 16));
+            quantityLabel.setForeground(Color.BLACK);
+
+            JButton addButton = new JButton("+");
+            addButton.setFont(new Font("Courier New", Font.ITALIC, 18));
+            addButton.setForeground(Color.BLACK);
+            addButton.setOpaque(false);
+            addButton.setContentAreaFilled(false);
+            addButton.setBorder(BorderFactory.createEmptyBorder());
+
+            JButton decreaseButton = new JButton("-");
+            decreaseButton.setFont(new Font("Courier New", Font.ITALIC, 18));
+            decreaseButton.setForeground(Color.BLACK);
+            decreaseButton.setOpaque(false);
+            decreaseButton.setContentAreaFilled(false);
+            decreaseButton.setBorder(BorderFactory.createEmptyBorder());
+
+            int index = i;
+            addButton.addActionListener(e -> {
+                quantities[index]++;
+                quantityLabel.setText(String.valueOf(quantities[index]));
+                updateTotalLabel(totalLabel, prices, quantities); // Update single total label
+            });
+
+            decreaseButton.addActionListener(e -> {
+                if (quantities[index] > 0) {
+                    quantities[index]--;
+                    quantityLabel.setText(String.valueOf(quantities[index]));
+                    updateTotalLabel(totalLabel, prices, quantities); // Update single total label
+                }
+            });
+
+            // Add components to the menu panel in the desired layout
+            menuPanel.add(itemLabel);       // Add item label
+            menuPanel.add(addButton);      // Add "+" button
+            menuPanel.add(decreaseButton); // Add "-" button
+            menuPanel.add(quantityLabel);  // Add quantity label
+        }
+
+        // Add the menu panel to the center
+        frame.add(menuPanel, BorderLayout.CENTER);
+
+        // Bottom panel with buttons and total label
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.setOpaque(false);
+
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 10, 10));
+        buttonPanel.setOpaque(false);
+
+        JButton checkoutButton = new JButton("Checkout");
+        checkoutButton.setBackground(Color.ORANGE);
+        checkoutButton.setForeground(Color.BLACK);
+        checkoutButton.setFont(new Font("Courier New", Font.ITALIC, 18));
+
+        JButton backToLoginButton = new JButton("Back to Login");
+        backToLoginButton.setBackground(Color.LIGHT_GRAY);
+        backToLoginButton.setForeground(Color.BLACK);
+        backToLoginButton.setFont(new Font("Courier New", Font.ITALIC, 18));
+
+        checkoutButton.addActionListener(e -> showTotalPage(items, prices, quantities));
+        backToLoginButton.addActionListener(e -> {
+            frame.getContentPane().removeAll();
+            showLoginPage();
+        });
+
+        buttonPanel.add(checkoutButton);
+        buttonPanel.add(backToLoginButton);
+
+        // Add total label and buttons to the bottom panel
+        bottomPanel.add(totalLabel, BorderLayout.NORTH);
+        bottomPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        // Add the bottom panel to the frame
+        frame.add(bottomPanel, BorderLayout.SOUTH);
+
+        frame.revalidate();
+        frame.repaint();
+    }
+
+    private static void updateTotalLabel(JLabel totalLabel, int[] prices, int[] quantities) {
+        int total = 0;
+        for (int i = 0; i < prices.length; i++) {
+            total += prices[i] * quantities[i];
+        }
+        totalLabel.setText("Total: ₱" + total);
+    }
+
+
+    // Show the Total Page after Checkout
+    private static void showTotalPage(String[] items, int[] prices, int[] quantities) {
+        int total = 0;
+
+        // Calculate the total price based on quantities
+        for (int i = 0; i < items.length; i++) {
+            total += quantities[i] * prices[i];
+        }
+
+        JDialog dialog = new JDialog(frame, "Payment", true);
+        dialog.getContentPane().setBackground(Color.decode("#3E2723"));
+        dialog.setSize(300, 200);
+        dialog.setLayout(new GridLayout(3, 2));
+
+        // Display the total and payment amount input
+        JLabel totalLabel = new JLabel("Total: ₱" + total);
+        totalLabel.setForeground(Color.WHITE);
+        JLabel paymentLabel = new JLabel("Payment Amount:");
+        paymentLabel.setForeground(Color.WHITE);
+
+        JTextField paymentField = new JTextField();
+        JButton payButton = new JButton("Pay");
+        dialog.add(totalLabel);
+        dialog.add(new JLabel()); // Empty space
+        dialog.add(paymentLabel);
+        dialog.add(paymentField);
+        dialog.add(new JLabel()); // Empty space
+        dialog.add(payButton);
+
+        // Pay button set up
+        int finalTotal = total;
+        payButton.addActionListener(e -> {
+            try {
+                int payment = Integer.parseInt(paymentField.getText());
+                if (payment >= finalTotal) {
+                    JOptionPane.showMessageDialog(dialog, "Payment successful! Change: ₱" + (payment - finalTotal),
+                            "Success", JOptionPane.INFORMATION_MESSAGE);
+                    dialog.dispose(); // Close the payment dialog
+                    showReceiptPage(items, prices, quantities, payment, finalTotal); // Show the receipt page
+                } else {
+                    JOptionPane.showMessageDialog(dialog, "Insufficient payment.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(dialog, "Please enter a valid payment amount.", "Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        dialog.setVisible(true); // Show the payment dialog
+    }
+
+    // Show the Receipt Page after Successful Payment
+    private static void showReceiptPage(String[] items, int[] prices, int[] quantities, int payment, int total) {
+        frame.getContentPane().removeAll();
+        frame.setLayout(new BorderLayout());
+        JPanel receiptPanel = new JPanel();
+        receiptPanel.setOpaque(false);
+        receiptPanel.setLayout(new BoxLayout(receiptPanel, BoxLayout.Y_AXIS));
+        String quantitiesfordb = Arrays.stream(quantities)
+                .mapToObj(String::valueOf)
+                .collect(Collectors
+                        .joining(" ,"));
+        ArrayList<String> ordersfordb  =  new ArrayList<>();
+        for (int x = 0; x < items.length; x++){
+            if(quantities[x] > 0 ){
+                String oder = items[x] + " x" + quantities[x];
+                ordersfordb.add(oder);
+            }
+        }
+        String ordersz = String.join(" ,",ordersfordb);
+        for (int i = 0; i < items.length; i++) {
+            if (quantities[i] > 0) {
+                receiptPanel.add(new JLabel(items[i] + " x" + quantities[i] + " = ₱" + (quantities[i] * prices[i])));
+            }
+        }
+        int change = payment - total;
+        receiptPanel.add(new JLabel("Total: ₱" + total));
+        receiptPanel.add(new JLabel("Payment: ₱" + payment));
+        receiptPanel.add(new JLabel("Change: ₱" + change));
+        saveOrderToDatabase(usernamefordb, ordersz, total, payment, change);
+        Font customFont = new Font("Courier New", Font.ITALIC, 40);
+        for (Component component : receiptPanel.getComponents()) {
+            if (component instanceof JLabel) {
+                ((JLabel) component).setFont(customFont);
+                ((JLabel) component).setForeground(Color.BLACK);
+            }
+        }
+        frame.add(receiptPanel, BorderLayout.CENTER);
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new GridLayout(1, 2, 10, 10));
+        buttonPanel.setOpaque(false);
+        JButton backToMenuButton = new JButton("Back to Menu");
+        backToMenuButton.setBackground(Color.ORANGE);
+        backToMenuButton.setForeground(Color.BLACK);
+        backToMenuButton.addActionListener(e -> {
+            frame.getContentPane().removeAll();
+            showMenuPage(); // Return to the menu page
+            frame.revalidate();
+            frame.repaint();
+        });
+
+        // "Back to Login" button
+        JButton backToLoginButton = new JButton("Back to Login");
+        backToLoginButton.setBackground(Color.LIGHT_GRAY);
+        backToLoginButton.setForeground(Color.BLACK);
+        backToLoginButton.addActionListener(e -> {
+            frame.getContentPane().removeAll();
+            showLoginPage(); // Return to the login page
+            frame.revalidate();
+            frame.repaint();
+        });
+        buttonPanel.add(backToMenuButton);
+        buttonPanel.add(backToLoginButton);
+        frame.add(buttonPanel, BorderLayout.SOUTH);
+        frame.revalidate();
+        frame.repaint();
+    }
+}
